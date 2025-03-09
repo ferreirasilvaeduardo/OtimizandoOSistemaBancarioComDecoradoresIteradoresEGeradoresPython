@@ -27,6 +27,12 @@ class Cliente:
         self.contas = []
 
     def realizar_transacao(self, conta, transacao):
+        if len(conta.historico.transacoes_do_dia()) >= 10:
+            print(
+                "\n@@@ Operação falhou! Você excedeu numero de operações do dia [10]. @@@"
+            )
+            return
+
         transacao.registrar(conta)
 
     def adicionar_conta(self, conta):
@@ -139,6 +145,8 @@ class ContaCorrente(Conta):
 
 
 class Historico:
+    formato = "%d-%m-%Y %H:%M:%S"
+
     def __init__(self):
         self._transacoes = []
 
@@ -151,7 +159,7 @@ class Historico:
             {
                 "tipo": transacao.__class__.__name__,
                 "valor": transacao.valor,
-                "data": datetime.now().strftime("%d-%m-%Y %H:%M:%s"),
+                "data": datetime.now().strftime(Historico.formato),
             }
         )
 
@@ -165,6 +173,14 @@ class Historico:
             else:
                 if tipo == str(transacao["tipo"]).strip().lower()[0]:
                     yield transacao
+
+    def transacoes_do_dia(self):
+        dia = datetime.now().date()
+        transacoes = []
+        for transacao in self._transacoes:
+            if dia == datetime.strptime(transacao["data"], Historico.formato).date():
+                transacoes.append(transacao)
+        return transacoes
 
 
 class Transacao(ABC):
@@ -411,9 +427,13 @@ def listar_contas(contas):
         print(textwrap.dedent(str(conta)))
 
 
-def main():
+def main(lista_clientes=[], lista_contas=[]):
     clientes = []
     contas = []
+    if lista_clientes and isinstance(lista_clientes, list):
+        clientes.extend(lista_clientes)
+    if lista_contas and isinstance(lista_contas, list):
+        contas.extend(lista_contas)
 
     while True:
         opcao = menu()
@@ -446,5 +466,25 @@ def main():
             )
 
 
+def setar_massa_de_dados():
+    cliente = PessoaFisica(
+        nome="João Silva",
+        data_nascimento="01-01-1990",
+        cpf="00000000000",
+        endereco="Rua A, 123 - Bairro B - Cidade C/UF",
+    )
+    conta = ContaCorrente(numero=1, cliente=cliente)
+    cliente.adicionar_conta(conta)
+    for qt in range(8):
+        deposito = Deposito(valor=100 + qt)
+        cliente.realizar_transacao(conta, deposito)
+    saque = Saque(valor=100)
+    cliente.realizar_transacao(conta, saque)
+    lista_clientes = [cliente]
+    lista_contas = [conta]
+    return lista_clientes, lista_contas
+
+
 if __name__ == "__main__":
-    main()
+    lista_clientes, lista_contas = setar_massa_de_dados()
+    main(lista_clientes, lista_contas)
